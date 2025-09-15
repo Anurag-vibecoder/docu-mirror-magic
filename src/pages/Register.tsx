@@ -1,107 +1,92 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, CheckCircle } from "lucide-react";
-import { toast } from "sonner";
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, CheckCircle } from "lucide-react";
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const Register = () => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: ""
-  });
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
+  const navigate = useNavigate();
+  const { signUp, user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, authLoading, navigate]);
 
   const validateForm = () => {
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError("All fields are required");
-      return false;
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      return 'Please fill in all fields';
     }
-    
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      return false;
+
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters long';
     }
-    
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return false;
+
+    if (password !== confirmPassword) {
+      return 'Passwords do not match';
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError("Please enter a valid email address");
-      return false;
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address';
     }
-    
-    return true;
+
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setError('');
 
-    if (!validateForm()) {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       setLoading(false);
       return;
     }
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await signUp(email, password, firstName, lastName);
       
-      // Check if user already exists
-      const existingUsers = JSON.parse(localStorage.getItem('samanyay_users') || '[]');
-      if (existingUsers.some((u: any) => u.email === formData.email)) {
-        setError("An account with this email already exists");
-        return;
+      if (error) {
+        setError(error.message);
+        toast.error('Registration failed: ' + error.message);
+      } else {
+        toast.success('Registration successful! Please check your email for verification.');
+        navigate('/dashboard');
       }
-
-      // Create new user
-      const newUser = {
-        id: Date.now().toString(),
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password, // In real app, this would be hashed
-        isPro: false,
-        createdAt: new Date().toISOString()
-      };
-
-      // Save user
-      existingUsers.push(newUser);
-      localStorage.setItem('samanyay_users', JSON.stringify(existingUsers));
-      
-      // Auto login
-      localStorage.setItem('samanyay_current_user', JSON.stringify(newUser));
-      
-      toast.success("Account created successfully!");
-      navigate('/dashboard');
-      
-    } catch (err) {
-      setError("An error occurred during registration");
+    } catch (err: any) {
+      setError('An unexpected error occurred');
+      toast.error('Registration failed');
     } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -147,10 +132,10 @@ const Register = () => {
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
                       id="firstName"
-                      name="firstName"
-                      placeholder="John"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
+                      type="text"
+                      placeholder="First name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
                       className="pl-10 transition-smooth focus:shadow-elegant"
                       required
                     />
@@ -161,10 +146,10 @@ const Register = () => {
                   <Label htmlFor="lastName">Last Name</Label>
                   <Input
                     id="lastName"
-                    name="lastName"
-                    placeholder="Doe"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
+                    type="text"
+                    placeholder="Last name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
                     className="transition-smooth focus:shadow-elegant"
                     required
                   />
@@ -177,11 +162,10 @@ const Register = () => {
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     id="email"
-                    name="email"
                     type="email"
-                    placeholder="john@lawfirm.com"
-                    value={formData.email}
-                    onChange={handleInputChange}
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 transition-smooth focus:shadow-elegant"
                     required
                   />
@@ -194,11 +178,10 @@ const Register = () => {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     id="password"
-                    name="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Create a strong password"
-                    value={formData.password}
-                    onChange={handleInputChange}
+                    placeholder="Create password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10 transition-smooth focus:shadow-elegant"
                     required
                   />
@@ -220,11 +203,10 @@ const Register = () => {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     id="confirmPassword"
-                    name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirm your password"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
+                    placeholder="Confirm password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     className="pl-10 pr-10 transition-smooth focus:shadow-elegant"
                     required
                   />

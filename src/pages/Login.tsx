@@ -1,51 +1,66 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const Login = () => {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
+  
+  const navigate = useNavigate();
+  const { signIn, user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setError('');
+
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await signIn(email, password);
       
-      // Check credentials (demo purposes)
-      const users = JSON.parse(localStorage.getItem('samanyay_users') || '[]');
-      const user = users.find((u: any) => u.email === email && u.password === password);
-      
-      if (!user) {
-        setError("Invalid email or password");
-        return;
+      if (error) {
+        setError(error.message);
+        toast.error('Login failed: ' + error.message);
+      } else {
+        toast.success('Login successful!');
+        navigate('/dashboard');
       }
-
-      // Store current user
-      localStorage.setItem('samanyay_current_user', JSON.stringify(user));
-      
-      toast.success("Login successful!");
-      navigate('/dashboard');
-      
-    } catch (err) {
-      setError("An error occurred during login");
+    } catch (err: any) {
+      setError('An unexpected error occurred');
+      toast.error('Login failed');
     } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
